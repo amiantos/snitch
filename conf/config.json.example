@@ -1,0 +1,35 @@
+{
+    "discord": {
+        "enabled": true,
+        "token": "<DISCORD_BOT_TOKEN>",
+        "discord_channel": "<DISCORD_CHANNEL_ID>",
+        "irc_channel": "#yourchannel",
+        "bridge_nick": "EyeBridge",
+        "bridge_password": "<NICKSERV_PASSWORD>",
+        "bridge_sasl": true,
+        "channel_admin": {
+            "enabled": true,
+            "channel": "#yourchannel",
+            "allowed_hosts": ["user/yourcloak"]
+        }
+    },
+    "irc": {
+        "host": "irc.libera.chat",
+        "port": 6697,
+        "tls": true,
+        "max_line_length": 350
+    },
+    "github_webhook": {
+        "enabled": true,
+        "secret": "<GITHUB_WEBHOOK_SECRET>"
+    },
+    "discourse_webhook": {
+        "enabled": true,
+        "secret": "<DISCOURSE_WEBHOOK_SECRET>",
+        "base_url": "https://discuss.example.com"
+    },
+    "web": {
+        "enabled": true,
+        "port": 3001
+    }
+}
