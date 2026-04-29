@@ -4,14 +4,26 @@ const config = require("./conf/config.json");
 const Logger = require("./classes/logger");
 const DiscordBridge = require("./classes/discord_bridge");
 const TopicStore = require("./classes/topic_store");
+const ChannelLog = require("./classes/channel_log");
 const { createWebhookRouter } = require("./classes/github_webhook");
 const { createDiscourseWebhookRouter } = require("./classes/discourse_webhook");
 
 const logger = new Logger(true);
 
 const topicStore = new TopicStore(path.join(__dirname, "data", "topics.json"));
-const bridge = new DiscordBridge(logger, config, topicStore);
+
+let channelLog = null;
+if (config.channel_log?.enabled) {
+  channelLog = new ChannelLog(logger, config.channel_log);
+}
+
+const bridge = new DiscordBridge(logger, config, topicStore, channelLog);
 bridge.start();
+
+if (channelLog) {
+  channelLog.attachTo(bridge.ircClient, config.discord.irc_channel);
+  channelLog.start();
+}
 
 let server = null;
 if (config.web?.enabled) {
@@ -48,6 +60,7 @@ if (config.web?.enabled) {
 
 function shutdown() {
   logger.info("Shutting down...");
+  if (channelLog) channelLog.stop();
   bridge.stop();
   if (server) server.close();
   setTimeout(() => process.exit(0), 500);

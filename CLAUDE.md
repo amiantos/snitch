@@ -28,6 +28,7 @@ npm test         # node:test runner
 |-------|---------|
 | **DiscordBridge** | Owns both Discord (discord.js) and IRC (irc-framework) connections. Forwards messages each way, handles `!topic` / `!op` admin commands via ChanServ, restores persistent topic on drift |
 | **TopicStore** | Tiny JSON-backed key-value store (`data/topics.json`) for the persistent channel topic |
+| **ChannelLog** | First-class IRC channel archiver. Subscribes to the bridge's IRC client, appends every channel event (chat, actions, joins/parts/quits, modes, nick/topic changes) to a per-month log file. Optionally tails last N lines and PUTs to R2 every interval |
 | **Logger** | Same shape as impostor's |
 | **admin_commands** | Pure parser for `!command args` syntax |
 | **github_webhook** | Express router factory; verifies HMAC, formats events, calls `bridge.announce()` |
@@ -60,6 +61,21 @@ Isaac (in the impostor repo) parses the IRC form via `classes/bridge_parser.js` 
 ## State
 
 - `data/topics.json`: `{ "#channel": "last topic set via !topic" }`. Atomic writes (tmp + rename).
+- `data/logs/${channel}-YYYY-MM.log`: append-only channel archive, one file per month (UTC boundaries). Lounge-format lines:
+  - `[ISO] <nick> message` — chat
+  - `[ISO] * nick message` — `/me` action
+  - `[ISO] -nick- message` — channel notice
+  - `[ISO] *** nick (~ident@host) joined` / `left` / `quit`
+  - `[ISO] *** target was kicked by kicker (reason)`
+  - `[ISO] *** nick set mode +o othernick`
+  - `[ISO] *** oldnick is now known as newnick`
+  - `[ISO] *** nick changed topic to 'text'`
+
+  **Outgoing messages** (Discord-bridged + webhook announcements) are recorded too via explicit `recordSent()` calls in `discord_bridge.js` — `irc-framework` doesn't echo our own privmsgs through the listener.
+
+  The R2 upload is just `tail(N)` of the archive PUT every `interval_seconds`. Tail spans monthly file boundaries so the upload always has continuity. Skip-if-unchanged check avoids no-op PUTs.
+
+  Wire format on disk == wire format uploaded == what `bradroot.me/website/js/irc-chat.js` parses. If you change the format, that parser needs updating.
 
 ## Webhooks
 

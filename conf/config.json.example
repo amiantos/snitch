@@ -31,5 +31,19 @@
     "web": {
         "enabled": true,
         "port": 3002
+    },
+    "channel_log": {
+        "enabled": true,
+        "log_dir": "data/logs",
+        "rotation": "monthly",
+        "tail_lines": 100,
+        "interval_seconds": 60,
+        "r2": {
+            "endpoint": "<R2_ENDPOINT_URL>",
+            "bucket": "<R2_BUCKET>",
+            "access_key_id": "<R2_ACCESS_KEY_ID>",
+            "secret_access_key": "<R2_SECRET_ACCESS_KEY>",
+            "key": "chat-log.txt"
+        }
     }
 }

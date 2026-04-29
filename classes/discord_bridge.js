@@ -4,10 +4,11 @@ const { splitMessage } = require("./message_splitter");
 const { parseAdminCommand } = require("./admin_commands");
 
 class DiscordBridge {
-  constructor(logger, config, topicStore = null) {
+  constructor(logger, config, topicStore = null, channelLog = null) {
     this.logger = logger;
     this.config = config;
     this.topicStore = topicStore;
+    this.channelLog = channelLog;
     this.discordConfig = config.discord;
 
     this.bridgeNick = this.discordConfig.bridge_nick || "EyeBridge";
@@ -215,6 +216,7 @@ class DiscordBridge {
       const splitLines = splitMessage(line, maxLen);
       for (const splitLine of splitLines) {
         this.ircClient.say(this.ircChannel, splitLine);
+        this.channelLog?.recordSent(this.bridgeNick, splitLine);
       }
     }
   }
@@ -271,6 +273,7 @@ class DiscordBridge {
       const maxLen = this.config.irc.max_line_length || 350;
       for (const line of splitMessage(message, maxLen)) {
         this.ircClient.say(this.ircChannel, line);
+        this.channelLog?.recordSent(this.bridgeNick, line);
       }
     } else {
       this.logger.warn(
