@@ -30,6 +30,6 @@
     },
     "web": {
         "enabled": true,
-        "port": 3001
+        "port": 3002
     }
 }

@@ -40,7 +40,7 @@ if (config.web?.enabled) {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  const port = config.web.port || 3001;
+  const port = config.web.port || 3002;
   server = app.listen(port, () => {
     logger.info(`Webhook server listening on :${port}`);
   });

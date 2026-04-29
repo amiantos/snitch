@@ -40,7 +40,7 @@ Or with Docker:
 | `irc` | Libera connection details (host, port, tls, max_line_length) |
 | `github_webhook` | HMAC secret for GitHub deliveries |
 | `discourse_webhook` | HMAC secret + base URL for Discourse instance |
-| `web` | Port for the webhook HTTP server (default 3001) |
+| `web` | Port for the webhook HTTP server (default 3002) |
 
 ## Tests
 
