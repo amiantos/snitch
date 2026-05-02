@@ -28,6 +28,10 @@
         "secret": "<DISCOURSE_WEBHOOK_SECRET>",
         "base_url": "https://discuss.example.com"
     },
+    "postalgic_webhook": {
+        "enabled": true,
+        "secret": "<POSTALGIC_WEBHOOK_SECRET>"
+    },
     "web": {
         "enabled": true,
         "port": 3002

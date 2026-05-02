@@ -7,6 +7,7 @@ const TopicStore = require("./classes/topic_store");
 const ChannelLog = require("./classes/channel_log");
 const { createWebhookRouter } = require("./classes/github_webhook");
 const { createDiscourseWebhookRouter } = require("./classes/discourse_webhook");
+const { createPostalgicWebhookRouter } = require("./classes/postalgic_webhook");
 
 const logger = new Logger(true);
 
@@ -46,6 +47,11 @@ if (config.web?.enabled) {
   if (config.discourse_webhook?.enabled) {
     app.use("/discourse-webhook", createDiscourseWebhookRouter(bridge, config, logger));
     logger.info("Discourse webhook mounted at /discourse-webhook");
+  }
+
+  if (config.postalgic_webhook?.enabled) {
+    app.use("/postalgic-webhook", createPostalgicWebhookRouter(bridge, config, logger));
+    logger.info("Postalgic webhook mounted at /postalgic-webhook");
   }
 
   app.get("/health", (_req, res) => {

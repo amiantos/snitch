@@ -12,7 +12,7 @@ Split out of [impostor](https://github.com/amiantos/impostor) (the Isaac IRC bot
 - Resolves Discord mentions, role mentions, channel mentions, and custom emoji to readable text.
 - `!topic <text>` and `!op [nick]` admin commands routed through ChanServ for allowed cloaks.
 - Persists the configured channel topic in `data/topics.json` and restores it if drift is detected.
-- HTTP endpoints for GitHub (`/webhook`) and Discourse (`/discourse-webhook`) webhooks; verifies HMAC signatures and announces formatted notifications to both networks.
+- HTTP endpoints for GitHub (`/webhook`), Discourse (`/discourse-webhook`), and Postalgic (`/postalgic-webhook`) webhooks; verifies HMAC signatures and announces formatted notifications to both networks.
 
 ## Setup
 
@@ -40,6 +40,7 @@ Or with Docker:
 | `irc` | Libera connection details (host, port, tls, max_line_length) |
 | `github_webhook` | HMAC secret for GitHub deliveries |
 | `discourse_webhook` | HMAC secret + base URL for Discourse instance |
+| `postalgic_webhook` | HMAC secret for Postalgic `post.share` deliveries |
 | `web` | Port for the webhook HTTP server (default 3002) |
 
 ## Tests
@@ -48,4 +49,4 @@ Or with Docker:
 npm test
 ```
 
-Covers admin command parsing, GitHub webhook formatters, and Discourse webhook formatters/HMAC verification.
+Covers admin command parsing, GitHub webhook formatters, Discourse webhook formatters/HMAC verification, and Postalgic webhook formatters.

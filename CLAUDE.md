@@ -33,6 +33,7 @@ npm test         # node:test runner
 | **admin_commands** | Pure parser for `!command args` syntax |
 | **github_webhook** | Express router factory; verifies HMAC, formats events, calls `bridge.announce()` |
 | **discourse_webhook** | Same pattern for Discourse `post_created` events |
+| **postalgic_webhook** | Same pattern for Postalgic `post.share` events; output is `[blog] title - excerpt <permalink>` |
 | **message_splitter** | Wraps long IRC lines on word/URL boundaries |
 
 ### Wire format (the contract with Isaac)
@@ -81,5 +82,6 @@ Isaac (in the impostor repo) parses the IRC form via `classes/bridge_parser.js` 
 
 - `POST /webhook` → GitHub (X-Hub-Signature-256, sha256 HMAC)
 - `POST /discourse-webhook` → Discourse (X-Discourse-Event-Signature, sha256 HMAC)
+- `POST /postalgic-webhook` → Postalgic (X-Postalgic-Signature, sha256 HMAC; only `post.share` is acted on)
 
-Both consume the raw request body for signature verification (captured in `index.js` middleware).
+All three consume the raw request body for signature verification (captured in `index.js` middleware).
