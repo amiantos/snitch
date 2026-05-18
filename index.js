@@ -13,17 +13,34 @@ const logger = new Logger(true);
 
 const topicStore = new TopicStore(path.join(__dirname, "data", "topics.json"));
 
-let channelLog = null;
+// One ChannelLog per IRC channel. Only the primary uploads to R2 — two
+// instances PUTing the same key would clobber each other.
+const channelLogs = new Map();
+const primaryChannel = config.discord.irc_channel;
+const extraChannels = (config.discord.extra_irc_channels || []).filter(
+  (c) => c.toLowerCase() !== primaryChannel.toLowerCase()
+);
+const allChannels = [primaryChannel, ...extraChannels];
+
 if (config.channel_log?.enabled) {
-  channelLog = new ChannelLog(logger, config.channel_log);
+  channelLogs.set(
+    primaryChannel.toLowerCase(),
+    new ChannelLog(logger, config.channel_log)
+  );
+  const { r2, ...extraLogCfg } = config.channel_log;
+  for (const ch of extraChannels) {
+    channelLogs.set(ch.toLowerCase(), new ChannelLog(logger, extraLogCfg));
+  }
 }
 
-const bridge = new DiscordBridge(logger, config, topicStore, channelLog);
+const bridge = new DiscordBridge(logger, config, topicStore, channelLogs);
 bridge.start();
 
-if (channelLog) {
-  channelLog.attachTo(bridge.ircClient, config.discord.irc_channel);
-  channelLog.start();
+for (const ch of allChannels) {
+  const log = channelLogs.get(ch.toLowerCase());
+  if (!log) continue;
+  log.attachTo(bridge.ircClient, ch);
+  log.start();
 }
 
 let server = null;
@@ -66,7 +83,7 @@ if (config.web?.enabled) {
 
 function shutdown() {
   logger.info("Shutting down...");
-  if (channelLog) channelLog.stop();
+  for (const log of channelLogs.values()) log.stop();
   bridge.stop();
   if (server) server.close();
   setTimeout(() => process.exit(0), 500);

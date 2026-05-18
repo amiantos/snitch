@@ -66,6 +66,28 @@ const formatters = {
   watch: formatStar,
 };
 
+// Given the `extra_channels` config + a repo full_name, return the deduped
+// list of additional IRC channels this event should also fan out to. A rule
+// with no `repos` (or an empty `repos` array) matches every repo.
+function selectExtraChannels(rules, repoFullName) {
+  if (!Array.isArray(rules) || rules.length === 0) return [];
+  const repo = (repoFullName || "").toLowerCase();
+  const matched = new Set();
+  const out = [];
+  for (const rule of rules) {
+    if (!rule || !rule.channel) continue;
+    const repos = Array.isArray(rule.repos) ? rule.repos : [];
+    const matches =
+      repos.length === 0 || repos.some((r) => r.toLowerCase() === repo);
+    if (!matches) continue;
+    const key = rule.channel.toLowerCase();
+    if (matched.has(key)) continue;
+    matched.add(key);
+    out.push(rule.channel);
+  }
+  return out;
+}
+
 // --- Router factory ---
 
 function createWebhookRouter(bridge, config, logger) {
@@ -105,9 +127,16 @@ function createWebhookRouter(bridge, config, logger) {
       return res.json({ message: "ignored" });
     }
 
+    const extraChannels = selectExtraChannels(
+      config.github_webhook.extra_channels,
+      req.body?.repository?.full_name
+    );
+
     try {
-      bridge.announce(message);
-      logger.info(`GitHub webhook: announced via EyeBridge: ${message}`);
+      bridge.announce(message, { extraChannels });
+      logger.info(
+        `GitHub webhook: announced via EyeBridge${extraChannels.length ? ` (+ ${extraChannels.join(", ")})` : ""}: ${message}`
+      );
       return res.json({ message: "posted" });
     } catch (err) {
       logger.error(`GitHub webhook: failed to announce: ${err.message}`);
@@ -120,6 +149,7 @@ function createWebhookRouter(bridge, config, logger) {
 
 module.exports = {
   createWebhookRouter,
+  selectExtraChannels,
   formatFork,
   formatIssue,
   formatPullRequest,

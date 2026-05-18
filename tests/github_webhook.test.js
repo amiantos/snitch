@@ -6,6 +6,7 @@ const {
   formatPullRequest,
   formatRelease,
   formatStar,
+  selectExtraChannels,
 } = require("../classes/github_webhook");
 
 // Build the smallest payload shape each formatter actually reads. Real GitHub
@@ -109,6 +110,41 @@ test("formatStar: only announces 'started' (the GitHub event for adding a star)"
     "[amiantos/impostor] <frank> starred the repo <https://github.com/frank>"
   );
   assert.equal(formatStar({ ...base, action: "deleted" }), null);
+});
+
+test("selectExtraChannels: matches repo case-insensitively", () => {
+  const rules = [{ channel: "#lurker", repos: ["amiantos/lurker"] }];
+  assert.deepEqual(selectExtraChannels(rules, "amiantos/lurker"), ["#lurker"]);
+  assert.deepEqual(selectExtraChannels(rules, "Amiantos/LURKER"), ["#lurker"]);
+});
+
+test("selectExtraChannels: non-matching repo returns empty", () => {
+  const rules = [{ channel: "#lurker", repos: ["amiantos/lurker"] }];
+  assert.deepEqual(selectExtraChannels(rules, "amiantos/snitch"), []);
+});
+
+test("selectExtraChannels: missing or empty repos matches every repo", () => {
+  assert.deepEqual(
+    selectExtraChannels([{ channel: "#firehose" }], "any/repo"),
+    ["#firehose"]
+  );
+  assert.deepEqual(
+    selectExtraChannels([{ channel: "#firehose", repos: [] }], "any/repo"),
+    ["#firehose"]
+  );
+});
+
+test("selectExtraChannels: dedupes when multiple rules target the same channel", () => {
+  const rules = [
+    { channel: "#lurker", repos: ["amiantos/lurker"] },
+    { channel: "#LURKER", repos: ["amiantos/lurker"] },
+  ];
+  assert.deepEqual(selectExtraChannels(rules, "amiantos/lurker"), ["#lurker"]);
+});
+
+test("selectExtraChannels: returns [] for missing/empty rules", () => {
+  assert.deepEqual(selectExtraChannels(undefined, "amiantos/lurker"), []);
+  assert.deepEqual(selectExtraChannels([], "amiantos/lurker"), []);
 });
 
 test("output starts with [tag] <name> so the bridge parser recognizes it as non-Discord", () => {

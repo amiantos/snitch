@@ -4,15 +4,22 @@ const { splitMessage } = require("./message_splitter");
 const { parseAdminCommand } = require("./admin_commands");
 
 class DiscordBridge {
-  constructor(logger, config, topicStore = null, channelLog = null) {
+  constructor(logger, config, topicStore = null, channelLogs = new Map()) {
     this.logger = logger;
     this.config = config;
     this.topicStore = topicStore;
-    this.channelLog = channelLog;
+    // Map<lowercased channel name, ChannelLog>. Only the primary channel is
+    // bridged to Discord; extras are IRC-only.
+    this.channelLogs = channelLogs;
     this.discordConfig = config.discord;
 
     this.bridgeNick = this.discordConfig.bridge_nick || "EyeBridge";
     this.ircChannel = this.discordConfig.irc_channel;
+    this.extraIrcChannels = (this.discordConfig.extra_irc_channels || []).filter(
+      (c) => c.toLowerCase() !== this.ircChannel.toLowerCase()
+    );
+    this.allIrcChannels = [this.ircChannel, ...this.extraIrcChannels];
+    this.joinedChannels = new Set();
     this.discordChannelId = this.discordConfig.discord_channel;
 
     // Channel-admin (operator) features. EyeBridge runs all privileged actions
@@ -142,15 +149,23 @@ class DiscordBridge {
   _setupIrcHandlers() {
     this.ircClient.on("registered", () => {
       this.reconnectDelay = 1000;
+      this.joinedChannels.clear();
       this.logger.info(
         `Discord bridge connected to IRC as ${this.bridgeNick}`
       );
-      this.ircClient.join(this.ircChannel);
+      for (const ch of this.allIrcChannels) {
+        this.ircClient.join(ch);
+      }
     });
 
     this.ircClient.on("join", (event) => {
       if (event.nick === this.bridgeNick) {
-        this.ircReady = true;
+        this.joinedChannels.add(event.channel.toLowerCase());
+        // ircReady tracks the primary channel; extras failing to join
+        // shouldn't block Discord forwarding.
+        if (event.channel.toLowerCase() === this.ircChannel.toLowerCase()) {
+          this.ircReady = true;
+        }
         this.logger.info(
           `Discord bridge joined IRC channel ${event.channel}`
         );
@@ -216,9 +231,13 @@ class DiscordBridge {
       const splitLines = splitMessage(line, maxLen);
       for (const splitLine of splitLines) {
         this.ircClient.say(this.ircChannel, splitLine);
-        this.channelLog?.recordSent(this.bridgeNick, splitLine);
+        this._channelLogFor(this.ircChannel)?.recordSent(this.bridgeNick, splitLine);
       }
     }
+  }
+
+  _channelLogFor(channel) {
+    return this.channelLogs.get(channel.toLowerCase()) || null;
   }
 
   /**
@@ -263,17 +282,37 @@ class DiscordBridge {
   }
 
   /**
-   * Announce a first-party message to both IRC and Discord.
-   * Used by webhook routers.
+   * Announce a first-party message. Always goes to the primary IRC channel
+   * + Discord; `extraChannels` fans out additively to other IRC channels
+   * the bot has joined.
    */
-  announce(message) {
+  announce(message, { extraChannels = [] } = {}) {
     if (!message) return;
 
     if (this.ircReady) {
       const maxLen = this.config.irc.max_line_length || 350;
+      const primaryLower = this.ircChannel.toLowerCase();
+      const extras = [];
+      const seen = new Set([primaryLower]);
+      for (const ch of extraChannels) {
+        const lower = ch.toLowerCase();
+        if (seen.has(lower)) continue;
+        seen.add(lower);
+        if (!this.joinedChannels.has(lower)) {
+          this.logger.warn(
+            `Discord bridge announce: not joined to ${ch}, skipping`
+          );
+          continue;
+        }
+        extras.push(ch);
+      }
       for (const line of splitMessage(message, maxLen)) {
         this.ircClient.say(this.ircChannel, line);
-        this.channelLog?.recordSent(this.bridgeNick, line);
+        this._channelLogFor(this.ircChannel)?.recordSent(this.bridgeNick, line);
+        for (const ch of extras) {
+          this.ircClient.say(ch, line);
+          this._channelLogFor(ch)?.recordSent(this.bridgeNick, line);
+        }
       }
     } else {
       this.logger.warn(

@@ -4,6 +4,7 @@
         "token": "<DISCORD_BOT_TOKEN>",
         "discord_channel": "<DISCORD_CHANNEL_ID>",
         "irc_channel": "#yourchannel",
+        "extra_irc_channels": [],
         "bridge_nick": "EyeBridge",
         "bridge_password": "<NICKSERV_PASSWORD>",
         "bridge_sasl": true,
@@ -21,7 +22,8 @@
     },
     "github_webhook": {
         "enabled": true,
-        "secret": "<GITHUB_WEBHOOK_SECRET>"
+        "secret": "<GITHUB_WEBHOOK_SECRET>",
+        "extra_channels": []
     },
     "discourse_webhook": {
         "enabled": true,
