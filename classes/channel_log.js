@@ -28,6 +28,10 @@ class ChannelLog {
     this.channel = null;
     this.uploadTimer = null;
     this.lastUploadedContent = null;
+    // Lowercased nicks currently in our channel. Maintained from
+    // userlist/join/part/kick/quit/nick so we can filter the server-wide
+    // QUIT and NICK events down to users actually in this channel.
+    this._users = new Set();
 
     // R2 is optional. Without it, the archive grows but nothing is uploaded.
     this.r2 = null;
@@ -67,26 +71,39 @@ class ChannelLog {
       this._append(`-${e.nick}- ${e.message}`);
     });
 
+    // RPL_ENDOFNAMES: full member list on join. Replaces our tracked set.
+    ircClient.on("userlist", (e) => {
+      if (!isOurChannel(e.channel)) return;
+      this._users = new Set((e.users || []).map((u) => u.nick.toLowerCase()));
+    });
+
     ircClient.on("join", (e) => {
       if (!isOurChannel(e.channel)) return;
+      this._users.add(e.nick.toLowerCase());
       this._append(`*** ${e.nick} (${e.ident}@${e.hostname}) joined`);
     });
 
     ircClient.on("part", (e) => {
       if (!isOurChannel(e.channel)) return;
+      this._users.delete(e.nick.toLowerCase());
       const reason = e.message ? ` (${e.message})` : "";
       this._append(`*** ${e.nick} (${e.ident}@${e.hostname}) left${reason}`);
     });
 
-    // QUIT is not channel-scoped; irc-framework only emits it for users in
-    // shared channels with us, so it's already filtered to relevant users.
+    // QUIT is server-wide. Filter to users actually in this channel — the
+    // bot may share other channels (e.g. a notifications-only channel) and
+    // those quits would otherwise leak into every channel's log.
     ircClient.on("quit", (e) => {
+      const key = e.nick.toLowerCase();
+      if (!this._users.has(key)) return;
+      this._users.delete(key);
       const reason = e.message ? ` (${e.message})` : "";
       this._append(`*** ${e.nick} (${e.ident}@${e.hostname}) quit${reason}`);
     });
 
     ircClient.on("kick", (e) => {
       if (!isOurChannel(e.channel)) return;
+      this._users.delete(e.kicked.toLowerCase());
       const reason = e.message ? ` (${e.message})` : "";
       this._append(`*** ${e.kicked} was kicked by ${e.nick}${reason}`);
     });
@@ -99,9 +116,12 @@ class ChannelLog {
       this._append(`*** ${e.nick || "server"} set mode ${modes}`);
     });
 
-    // NICK is not channel-scoped either; irc-framework only emits for users
-    // we share a channel with.
+    // NICK is server-wide; same filtering rationale as QUIT.
     ircClient.on("nick", (e) => {
+      const key = e.nick.toLowerCase();
+      if (!this._users.has(key)) return;
+      this._users.delete(key);
+      this._users.add(e.new_nick.toLowerCase());
       this._append(`*** ${e.nick} is now known as ${e.new_nick}`);
     });
 
